@@ -53,8 +53,8 @@ async function bootstrap() {
       'access-token',
     )
     .addServer('http://localhost:4000', 'Local')
-    .addServer('https://api.covoitivoire.com', 'Production')
-    .addServer('http://37.60.241.35:4000', 'dev')
+    .addServer('https://api.inseach.com', 'Production')
+    .addServer('http://109.199.107.23:5000', 'dev')
 
     .build();
 
@@ -73,7 +73,7 @@ async function bootstrap() {
   // ----------------------------
   // Lancer le serveur
   // ----------------------------
-  const port = configService.get<number>('PORT') || 4000;
+  const port = configService.get<number>('PORT') || 5000;
   await app.listen(port);
 
   console.log(`🚀 API running on port ${port}`);
