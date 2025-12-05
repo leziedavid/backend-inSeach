@@ -7,7 +7,7 @@ SCHEMA_PATH="prisma/schema.prisma"
 DB_HOST="ms-postgres"
 DB_PORT="5432"
 DB_USER="microservices"
-DB_NAME="mseagrie"
+DB_NAME="inseach"
 MICROSERVICES_PASSWORD="microservices"
 DB_URL="postgresql://$DB_USER:$MICROSERVICES_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
 
