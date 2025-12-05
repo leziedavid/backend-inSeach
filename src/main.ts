@@ -27,10 +27,11 @@ async function bootstrap() {
   // ⚡ Indiquer à Express que l'app est derrière un proxy (Caddy)
   app.set('trust proxy', true);
 
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  });
+  // app.enableCors({
+  //   origin: true,
+  //   credentials: true,
+  // });
+  app.enableCors({ origin: "*", credentials: true });
 
 
   // ----------------------------
