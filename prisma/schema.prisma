@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================
+// ENUMS
+// ===========================
+enum Role {
+  ADMIN
+  PROVIDER
+  CLIENT
+  SELLER
+  USER
+}
+
+enum PaymentMethod {
+  IMMEDIATE
+  ON_ARRIVAL
+  MOBILE_MONEY // ✅ Ajouté
+  CARD // ✅ Ajouté
+  BANK_TRANSFER // ✅ Ajouté
+}
+
+enum AccountType {
+  SELLER
+  INDIVIDUAL
+  ENTERPRISE
+}
+
+enum ServiceType {
+  APPOINTMENT
+  ORDER
+  PRODUCT
+  MIXED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderStatus {
+  NEW
+  PROCESSING
+  READY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum UserStatus {
+  INACTIVE
+  ACTIVE
+  BLOCKED
+}
+
+// ===========================
+// ICONES
+// ===========================
+model Icone {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  services    Service[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+}
+
+// ===========================
+// CATEGORIES DE SERVICES
+// ===========================
+model ServiceCategory {
+  id            String               @id @default(uuid())
+  name          String               @unique
+  description   String?
+  subcategories ServiceSubcategory[]
+  userLinks     UserCategory[]
+  // ✅ Relation inverse vers Service
+  services      Service[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model ServiceSubcategory {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  categoryId  String
+  category    ServiceCategory   @relation(fields: [categoryId], references: [id])
+  serviceType ServiceType[] // plusieurs types possibles
+  services    Service[]
+  userLinks   UserSubcategory[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// ===========================
+// UTILISATEURS
+// ===========================
+model User {
+  id                    String            @id @default(uuid())
+  email                 String?
+  name                  String?
+  phone                 String?           @unique
+  password              String
+  typeCompte            AccountType
+  serviceType           ServiceType       @default(MIXED)
+  roles                 Role // UN SEUL RÔLE
+  status                UserStatus        @default(ACTIVE)
+  companyName           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  // ----------------------
+  // NOUVELLE LOCALISATION
+  // ----------------------
+  location              Json // { lat, lng, country, city, district, street }
+  // -----------------------------
+  // Relation inverse vers Rating
+  // -----------------------------
+  ratings               Rating[]          @relation("UserRatings")
+  // ----------------------
+  // Relations
+  // ======= Relation inverse vers Product (vendeur) =======
+  products              Product[] // <-- ajoute ceci
+  providedServices      Service[]         @relation("ProviderServices")
+  clientOrders          Order[]           @relation("ClientOrders")
+  providerOrders        Order[]           @relation("ProviderOrders")
+  clientAppointments    Appointment[]     @relation("ClientAppointments")
+  providerAppointments  Appointment[]     @relation("ProviderAppointments")
+  transactions          Transaction[]
+  selectedCategories    UserCategory[]
+  selectedSubcategories UserSubcategory[]
+  // Wallet (1:1)
+  wallet                Wallet?
+}
+
+
+// ===========================
+// WALLET UTILISATEUR
+// ===========================
+model Wallet {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id])
+  balance      Int           @default(0) // solde actuel en centimes
+  currency     String        @default("FCFA")
+  transactions Transaction[]
+  paymentMethod PaymentMethod @default(MOBILE_MONEY)
+  rechargeType String        @default("WAVE")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+}
+
+// ===========================
+// LIAISONS UTILISATEUR ↔ CATEGORIES
+// ===========================
+model UserCategory {
+  id         String          @id @default(uuid())
+  userId     String
+  categoryId String
+  user       User            @relation(fields: [userId], references: [id])
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime        @default(now())
+}
+
+model UserSubcategory {
+  id            String             @id @default(uuid())
+  userId        String
+  subcategoryId String
+  user          User               @relation(fields: [userId], references: [id])
+  subcategory   ServiceSubcategory @relation(fields: [subcategoryId], references: [id])
+  createdAt     DateTime           @default(now())
+}
+
+// ===========================
+// SERVICES
+// ===========================
+model Service {
+  id              String              @id @default(uuid())
+  title           String
+  description     String?
+  providerId      String?
+  provider        User?               @relation("ProviderServices", fields: [providerId], references: [id])
+  serviceType     ServiceType
+  code            String              @unique
+  basePriceCents  Float? // <-- prix pour les achats en gros (optionnel)
+  completionPrice Float?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  // ----------------------
+  //   LOCALISATION JSON
+  // ----------------------
+  location        Json // { lat, lng, country, city, district, street }
+  // ICÔNES (relations)
+  // ----------------------
+  iconId          String?
+  icone           Icone?              @relation(fields: [iconId], references: [id])
+  // ----------------------
+  //   CATEGORIE & SOUS-CATEGORIE
+  // ----------------------
+  categoryId      String?
+  category        ServiceCategory?    @relation(fields: [categoryId], references: [id])
+  subcategoryId   String?
+  subcategory     ServiceSubcategory? @relation(fields: [subcategoryId], references: [id])
+  // Relations
+  appointments    Appointment[]
+  orderItems      OrderItem[]
+}
+
+// ===========================
+// RENDEZ-VOUS (APPOINTMENTS)
+// ===========================
+model Appointment {
+  id            String            @id @default(uuid())
+  serviceId     String
+  providerId    String
+  clientId      String?
+  transactionId String?           @unique
+  service       Service           @relation(fields: [serviceId], references: [id])
+  provider      User              @relation("ProviderAppointments", fields: [providerId], references: [id])
+  client        User?             @relation("ClientAppointments", fields: [clientId], references: [id])
+  transaction   Transaction?      @relation("AppointmentTransaction", fields: [transactionId], references: [id])
+  scheduledAt   DateTime?
+  time          String?
+  durationMins  Int?
+  priceCents    Float?
+  status        AppointmentStatus @default(REQUESTED)
+  // Nouvelle relation vers Rating
+  rating        Rating?
+  providerNotes String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  subCategories SubCategory[]
+  products      Product[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model SubCategory {
+  id         String    @id @default(uuid())
+  name       String
+  slug       String    @unique
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id])
+  products   Product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Product {
+  id               String      @id @default(uuid())
+  name             String
+  price            Float
+  originalPrice    Float?
+  code             String      @unique
+  currency         String      @default("FCFA")
+  image            String
+  description      String
+  rating           Float       @default(0)
+  percentegeRating Float?
+  reviewCount      Int         @default(0)
+  isBestSeller     Boolean     @default(false)
+  sizes            String[]    @default([]) // ✔ FIX
+  stock            Int         @default(0)
+  tags             String[]
+  features         String[]
+  seller           String
+  // Relations catégories
+  categoryId       String
+  category         Category    @relation(fields: [categoryId], references: [id])
+  subCategoryId    String
+  subCategory      SubCategory @relation(fields: [subCategoryId], references: [id])
+  // Relation vendeur (User)
+  userId           String?
+  user             User?       @relation(fields: [userId], references: [id])
+  // Relation existante OrderItem
+  orderItems       OrderItem[] @relation("ProductOrderItems")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+// ===========================
+// COMMANDES
+// ===========================
+model Order {
+  id            String       @id @default(uuid())
+  clientId      String?
+  providerId    String?
+  transactionId String?      @unique
+  client        User?        @relation("ClientOrders", fields: [clientId], references: [id])
+  provider      User?        @relation("ProviderOrders", fields: [providerId], references: [id])
+  transaction   Transaction? @relation("OrderTransaction", fields: [transactionId], references: [id])
+  status        OrderStatus  @default(NEW)
+  totalCents    Int
+  instructions  String?
+  location      Json // { lat, lng, country, city, district, street }
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         OrderItem[]
+
+}
+
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  serviceId      String
+  productId      String?
+  quantity       Int
+  unitPriceCents Int
+  title          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  order          Order    @relation(fields: [orderId], references: [id])
+  service        Service  @relation(fields: [serviceId], references: [id])
+  product        Product? @relation("ProductOrderItems", fields: [productId], references: [id])
+}
+
+// ===========================
+// TRANSACTIONS
+// ===========================
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String?
+  appointment Appointment?      @relation("AppointmentTransaction")
+  order       Order?            @relation("OrderTransaction")
+  user        User?             @relation(fields: [userId], references: [id])
+  walletId    String
+  wallet      Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amountCents Int
+  currency    String            @default("EUR")
+  status      TransactionStatus @default(PENDING)
+  description Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// ===========================
+// ALERTES
+// ===========================
+model Alert {
+  id          String   @id @default(uuid())
+  type        String // "text" | "audio"
+  title       String
+  message     String? // pour type text
+  audioUrl    String? // pour type audio
+  linkText    String?
+  linkHref    String?
+  isClickable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
+// ===========================
+// SLIDERS
+// ===========================
+model Slider {
+  id        String   @id @default(uuid())
+  name      String
+  specialty String?
+  rating    Float?
+  reviews   Int?
+  date      DateTime
+  image     String
+  isToday   Boolean? @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// ===========================
+// NOTES / RATINGS
+// ===========================
+model Rating {
+  id            String      @id @default(uuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  clientId      String
+  client        User        @relation("UserRatings", fields: [clientId], references: [id])
+  rating        Int // 1 à 5
+  comment       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+}
+
+// ===========================
+// GESTIONNAIRE DE FICHIERS
+// ===========================
+model FileManager {
+  id           Int      @id @default(autoincrement())
+  fileCode     String   @unique
+  fileName     String
+  fileMimeType String
+  fileSize     Int
+  fileUrl      String
+  fileType     String // Ex: 'userFiles', 'servicesFiles', 'iconeServiceFiles', 'iconePaysFiles'
+  targetId     String // UUID de l’élément lié
+  filePath     String? // chemin local sur le disque (optionnel)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+}

@@ -1,0 +1,18 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { IconeController } from './icone.controller';
+
+describe('IconeController', () => {
+  let controller: IconeController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [IconeController],
+    }).compile();
+
+    controller = module.get<IconeController>(IconeController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
