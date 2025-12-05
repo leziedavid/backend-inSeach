@@ -40,7 +40,7 @@ async function bootstrap() {
     .setTitle('PROJET INSEACH')
     .setDescription('API POUR LE PROJET INSEACH')
     .setVersion('1.0')
-    .addTag('covoitivoire')
+    .addTag('inseach')
     .addBearerAuth(
       {
         type: 'http',
