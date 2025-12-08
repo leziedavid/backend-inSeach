@@ -52,6 +52,18 @@ export class UserService {
             serviceType: type,
         };
 
+        /* ---------------------------------------
+        🔎 Vérification si le numéro existe déjà
+        ----------------------------------------*/
+
+        const existingUser = await this.prisma.user.findFirst({
+            where: { phone: dto.phone }, // change par email si nécessaire
+        });
+
+        if (existingUser) {
+            return new BaseResponse( 400, "Un compte avec ce numéro existe déjà.", null );
+        }
+
         try {
 
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -100,6 +112,7 @@ export class UserService {
             console.error('[UserService.create] ❌', error);
             throw new InternalServerErrorException("Erreur lors de la création de l'utilisateur");
         }
+        
     }
 
     /** --------------------- Mise à jour utilisateur --------------------- */

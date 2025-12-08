@@ -22,7 +22,8 @@ services:
       CLOUDINARY_API_KEY: "196581248868223"
       CLOUDINARY_API_SECRET: "_IN5L1lB4JNqh-t_csNWSb3z5W0"
       FILE_STORAGE_PATH: "/app/docs"
-      SERVEUR_URL: "http://109.199.107.23:5000"
+      # SERVEUR_URL: "http://109.199.107.23:5000"
+      SERVEUR_URL: "https://dev.peoogo.com"
     networks:
       - dockerfiles_microservices-net   # réseau existant pour DB
     restart: always
