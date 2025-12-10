@@ -9,7 +9,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - /peoogo/docs:/app/inseach   # dossier docs sur le VPS
+      - /peoogo/docs:/app/uploads   # dossier docs sur le VPS
     environment:
       NODE_ENV: production
       PORT: 5000
