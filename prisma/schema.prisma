@@ -239,6 +239,7 @@ model Appointment {
   time          String?
   durationMins  Int?
   priceCents    Float?
+  interventionType String? // urgence | rdv
   status        AppointmentStatus @default(REQUESTED)
   // Nouvelle relation vers Rating
   rating        Rating?

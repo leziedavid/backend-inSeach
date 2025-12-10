@@ -1,25 +1,24 @@
-import { Controller, Post, Get, Body, Query, Req, BadRequestException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Req, BadRequestException, UseGuards, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { SecurityService } from './security.service';
 import { LoginByPhoneCode } from 'src/common/dto/request/loginByPhoneCode.dto';
 import { PaginationParamsDto } from 'src/common/dto/request/pagination-params.dto';
 import { Request } from 'express';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
-import { GeoLocationResult } from 'src/common/dto/response/GeoLocationResult';
 
 @ApiTags('Security API')
 @Controller('security')
 export class SecurityController {
-    constructor(private readonly securityService: SecurityService) {}
+    constructor(private readonly securityService: SecurityService) { }
 
 
-        /** --------------------- Reverse Geocoding --------------------- */
+    /** --------------------- Reverse Geocoding --------------------- */
     @Get('reverse-geocode')
     @ApiOperation({ summary: 'Récupérer l’adresse depuis des coordonnées', description: 'Retourne une adresse complète via latitude et longitude.' })
     @ApiQuery({ name: 'lat', type: 'number', required: true, description: 'Latitude' })
     @ApiQuery({ name: 'lng', type: 'number', required: true, description: 'Longitude' })
     @ApiResponse({ status: 200, description: 'Adresse récupérée avec succès.', schema: { type: 'object' } })
-    async reverseGeocode(  @Query('lat') lat: string,  @Query('lng') lng: string,): Promise<any> {
+    async reverseGeocode(@Query('lat') lat: string, @Query('lng') lng: string,): Promise<any> {
         if (!lat || !lng) throw new BadRequestException('Latitude et longitude requises');
         const latitude = parseFloat(lat);
         const longitude = parseFloat(lng);
@@ -37,10 +36,22 @@ export class SecurityController {
         return this.securityService.loginByEmailOrPhone(dto);
     }
 
+
+    // recon@nectUser
+
+    @Post('reconnect/:id')
+    @ApiOperation({ summary: 'Reconnecter un utilisateur' })
+    @ApiResponse({ status: 200, description: 'Utilisateur reconnecté.' })
+    async reconnectUser(@Param('id', ParseUUIDPipe) id: string) {
+        return this.securityService.reconnectUser(id);
+    }
+
+
+
     /** --------------------- 🔁 Rafraîchir un token --------------------- */
     @Post('refresh')
     @ApiOperation({ summary: 'Rafraîchir le token JWT', description: 'Génère un nouveau token access à partir d’un refresh token valide.' })
-    @ApiBody({ schema: {  type: 'object',  properties: {  token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5...' },  }, }, })
+    @ApiBody({ schema: { type: 'object', properties: { token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5...' }, }, }, })
     @ApiResponse({ status: 200, description: 'Token rafraîchi avec succès.' })
     async refreshToken(@Body('token') token: string) {
         if (!token) throw new BadRequestException('Token requis');

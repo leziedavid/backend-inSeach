@@ -12,7 +12,6 @@ import { FunctionService } from 'src/utils/pagination.service';
 import { PaginationParamsDto } from 'src/common/dto/request/pagination-params.dto';
 import { User } from '@prisma/client';
 import { mapUser } from 'src/utils/mappers/user.mapper';
-import { GeoLocationResult } from 'src/common/dto/response/GeoLocationResult';
 import { locationMapping } from 'src/utils/mappers/location-mapper';
 
 @Injectable()
@@ -50,17 +49,13 @@ export class SecurityService {
         const user = isEmail ? await this.prisma.user.findFirst({ where: { email: dto.login } }) : await this.prisma.user.findFirst({ where: { phone: dto.login } });
 
         if (!user) return new BaseResponse(401, 'Utilisateur non trouvé');
-
-        console.log('user:', user);
-
+        // console.log('user:', user);
         const ok = await bcrypt.compare(dto.password, user.password);
         if (!ok) return new BaseResponse(401, 'Mot de passe incorrect');
 
         if (user.status !== 'ACTIVE') {
             return new BaseResponse(403, 'Votre compte n’est pas encore activé. Veuillez contacter l’administrateur.');
         }
-
-        let partnerId: string | null = null;
 
         const file = await this.prisma.fileManager.findFirst({
             where: { targetId: user.id, fileType: 'userFiles' },
@@ -69,7 +64,7 @@ export class SecurityService {
         const imageUrl = file ? getPublicFileUrl(file.fileUrl) : null;
         // Transformer la localisation avec la fonction mapping
         const location = locationMapping(user.location);
-        
+
         const payload = {
             sub: user.id,
             roles: user.roles,
@@ -98,11 +93,62 @@ export class SecurityService {
                 email: user.email,
                 phone: user.phone,
                 role: user.roles,
-                partnerId,
                 imageUrl,
             },
         });
     }
+
+    // reconnectUser
+    async reconnectUser(id: string): Promise<BaseResponse<any>> {
+
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user) return new BaseResponse(404, 'Utilisateur introuvable'); // 404 not found
+
+        if (user.status !== 'ACTIVE') {
+            return new BaseResponse(403, 'Votre compte n’est pas encore activé. Veuillez contacter l’administrateur.');
+        }
+
+        const file = await this.prisma.fileManager.findFirst({
+            where: { targetId: user.id, fileType: 'userFiles' },
+            orderBy: { createdAt: 'desc' },
+        });
+        const imageUrl = file ? getPublicFileUrl(file.fileUrl) : null;
+        // Transformer la localisation avec la fonction mapping
+        const location = locationMapping(user.location);
+
+        const payload = {
+            sub: user.id,
+            roles: user.roles,
+            typeCompte: user.typeCompte,
+            companyName: user.companyName,
+            serviceType: user.serviceType,
+            location: location,
+            name: user.name,
+            email: user.email,
+            imageUrl,
+        };
+
+        const access = this.jwtService.sign(payload, {
+            expiresIn: this.configService.get('JWT_ACCESS_EXPIRE') || '24h',
+        });
+        const refresh = this.jwtService.sign(payload, {
+            expiresIn: this.configService.get('JWT_REFRESH_EXPIRE') || '7d',
+        });
+
+        return new BaseResponse(200, 'Connexion réussie', {
+            access_token: access,
+            refresh_token: refresh,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.roles,
+                imageUrl,
+            },
+        });
+    }
+
 
     /** --------------------- Rafraîchir token --------------------- */
     async refreshToken(token: string): Promise<BaseResponse<{ access_token: string }>> {
@@ -120,7 +166,6 @@ export class SecurityService {
             throw new UnauthorizedException('Refresh token invalide ou expiré');
         }
     }
-
 
     /** --------------------- Détails d’un utilisateur --------------------- */
 
@@ -205,9 +250,9 @@ export class SecurityService {
             // 🔹 On utilise mapUser avec includeRelations.images et files
             const userInfo = mapUser(user, {
                 includeRelations: {
-                images: true,
-                        selectedCategories: true,       // ← obligatoire
-        selectedSubcategories: true,    // ← obligatoire
+                    images: true,
+                    selectedCategories: true,       // ← obligatoire
+                    selectedSubcategories: true,    // ← obligatoire
                 },
                 files: filesMap,
             });

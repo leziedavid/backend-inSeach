@@ -8,10 +8,8 @@ import { ParamsDto } from 'src/common/dto/request/params.dto';
 
 @Injectable()
 export class AppointmentService {
-    constructor(
-        private prisma: PrismaService,
-        private functionService: FunctionService, // pour pagination centralisée
-    ) { }
+    
+    constructor(private prisma: PrismaService,  private functionService: FunctionService,) { }
 
     /* ----------------------
      * CREATE APPOINTMENT
@@ -31,6 +29,7 @@ export class AppointmentService {
                 priceCents: dto.priceCents ?? undefined,
                 providerNotes: dto.providerNotes ?? undefined,
                 status: AppointmentStatus.REQUESTED,
+                interventionType: dto.interventionType ?? undefined,
             },
         });
         return new BaseResponse(201, 'Rendez-vous créé', appointment);
@@ -50,6 +49,7 @@ export class AppointmentService {
         if (dto.priceCents !== undefined) updateData.priceCents = dto.priceCents;
         if (dto.providerNotes !== undefined) updateData.providerNotes = dto.providerNotes;
         if (dto.status !== undefined) updateData.status = dto.status;
+        if (dto.interventionType !== undefined) updateData.interventionType = dto.interventionType;
 
         if (dto.serviceId) {
             const service = await this.prisma.service.findUnique({ where: { id: dto.serviceId } });
@@ -198,19 +198,16 @@ export class AppointmentService {
     /* ----------------------
      * GET ONE 31da94c4-f1c7-4aed-9bd9-6d44aa2ced1b
     UPDATE public."Appointment"
-SET "status" = 'REQUESTED',
-    "updatedAt" = NOW()
-WHERE "id" = '31da94c4-f1c7-4aed-9bd9-6d44aa2ced1b';
-
+    SET "status" = 'REQUESTED',  "updatedAt" = NOW()
+    WHERE "id" = '31da94c4-f1c7-4aed-9bd9-6d44aa2ced1b';
      * ----------------------*/
-    async findOne(id: string) {
-        const appointment = await this.prisma.appointment.findUnique({
-            where: { id },
-            include: { service: true, provider: true, client: true },
-        });
-        if (!appointment) throw new NotFoundException('Rendez-vous introuvable');
 
+    async findOne(id: string) {
+
+        const appointment = await this.prisma.appointment.findUnique({ where: { id }, include: { service: true, provider: true, client: true },});
+        if (!appointment) throw new NotFoundException('Rendez-vous introuvable');
         return new BaseResponse(200, 'Rendez-vous récupéré', appointment);
+
     }
 
     /* ----------------------

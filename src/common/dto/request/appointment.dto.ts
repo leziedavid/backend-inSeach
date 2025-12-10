@@ -8,15 +8,16 @@ export class AppointmentDto {
     @IsUUID()
     id: string;
 
+    // interventionType
+    @ApiProperty({ example: 'rdv' })
+    @IsString()
+    interventionType: string;
+    
+
     @ApiProperty({ example: 'uuid-service-123' })
     @IsUUID()
     @IsNotEmpty()
     serviceId: string;
-
-    // @ApiProperty({ example: 'uuid-provider-123' })
-    // @IsUUID()
-    // @IsNotEmpty()
-    // providerId: string;
 
     @ApiPropertyOptional({ example: 'uuid-client-123' })
     @IsUUID()
