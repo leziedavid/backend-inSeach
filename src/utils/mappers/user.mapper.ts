@@ -34,7 +34,8 @@ export function mapUser(user: any & {
     icone?: Icone;
     images: true,
 },
- options?: MappingOptions) {
+
+options?: MappingOptions) {
 
     const mapped: any = {
         id: user.id,
@@ -43,6 +44,7 @@ export function mapUser(user: any & {
         phone: user.phone ?? undefined,
         typeCompte: user.typeCompte,
         roles: user.roles,
+        serviceType:user.serviceType,
         companyName: user.companyName ?? undefined,
         status: user.status,
         createdAt: user.createdAt.toISOString(),
