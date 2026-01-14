@@ -29,11 +29,26 @@ export class MyServicesService {
     /* -------------------------------------------------------
      * UPLOAD IMAGE
      * -----------------------------------------------------*/
-    private async uploadImage(serviceId: string, fileBuffer: Buffer,) {
+    private async uploadImage(serviceId: string, fileBuffer: Buffer, replaceExisting = false,) {
         // Supprimer les anciennes images
-        await this.prisma.fileManager.deleteMany({
-            where: { targetId: serviceId, fileType: 'ServiceMain' },
-        });
+        if (replaceExisting) {
+            
+            const existingFile = await this.prisma.fileManager.findFirst({
+                where: { targetId: serviceId, fileType: 'ServiceMain' },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            if (existingFile?.fileCode) {
+                try {
+                    await this.localStorage.deleteFile(existingFile.fileCode);
+                } catch (error) {
+                    console.warn(`Erreur suppression  ${existingFile.fileCode}: ${error.message}`);
+                }
+                await this.prisma.fileManager.deleteMany({
+                    where: { targetId: serviceId, fileType: 'ServiceMain' },
+                });
+            }
+        }
 
         // Sauvegarde fichier
         const upload = await this.localStorage.saveFile(fileBuffer, 'services');
@@ -246,7 +261,8 @@ export class MyServicesService {
                         category: true,
                         subcategory: true,
                         icone: true,
-                        appointments: true,
+                        // ✅ Dernier appointment uniquement
+                        appointments: {  orderBy: { createdAt: 'desc' }, take: 1, },
                         orderItems: true,
                     }
                 },
@@ -307,7 +323,8 @@ export class MyServicesService {
                         category: true,
                         subcategory: true,
                         icone: true,
-                        appointments: true,
+                        // ✅ Dernier appointment uniquement
+                        appointments: {  orderBy: { createdAt: 'desc' }, take: 1, },
                         orderItems: true,
                     }
                 },
@@ -413,7 +430,8 @@ export class MyServicesService {
                         category: true,
                         subcategory: true,
                         icone: true,
-                        appointments: true,
+                        // ✅ Dernier appointment uniquement
+                        appointments: {  orderBy: { createdAt: 'desc' }, take: 1, },
                         orderItems: true,
                     },
                     orderBy: { createdAt: "desc" },
@@ -428,7 +446,8 @@ export class MyServicesService {
                         category: true,
                         subcategory: true,
                         icone: true,
-                        appointments: true,
+                        // ✅ Dernier appointment uniquement
+                        appointments: {  orderBy: { createdAt: 'desc' }, take: 1, },
                         orderItems: true,
                     },
                     orderBy: { createdAt: "desc" },
@@ -440,7 +459,8 @@ export class MyServicesService {
                         category: true,
                         subcategory: true,
                         icone: true,
-                        appointments: true,
+                        // ✅ Dernier appointment uniquement
+                        appointments: {  orderBy: { createdAt: 'desc' }, take: 1, },
                         orderItems: true,
                     },
                     orderBy: { createdAt: "desc" },

@@ -20,14 +20,13 @@ export class LocalStorageService {
     /**
      * Sauvegarde un fichier buffer ou chemin local
      */
-    async saveFile(fileData: Buffer | string, folder = 'default',): Promise<{
+    async saveFile( fileData: Buffer | string, folder = 'default',): Promise<{
         fileCode: string;
         fileName: string;
         fileMimeType: string;
         fileSize: number;
         filePath: string;
-        fileUrl: string;
-    }> {
+        fileUrl: string;}> {
         const fileCode = randomUUID();
         const targetDir = path.join(this.uploadDir, folder);
         if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
@@ -53,36 +52,24 @@ export class LocalStorageService {
         }
 
         // Cas 2 : buffer
-        
         try {
             const arrayBuffer = new Uint8Array(fileData);
 
-            // Vérifier d'abord si c'est un SVG (fichier texte XML)
-            const textContent = Buffer.from(arrayBuffer).toString('utf-8', 0, Math.min(1000, arrayBuffer.length));
-            const isSvg = textContent.trim().startsWith('<svg') || textContent.includes('xmlns="http://www.w3.org/2000/svg"');
+            // Import dynamique du module ESM
+            const fileTypeModule = await import('file-type');
+            const type = await fileTypeModule.fromBuffer(arrayBuffer);
 
             let extension = 'bin';
             let mime = 'application/octet-stream';
 
-            if (isSvg) {
-                // C'est un SVG
-                extension = 'svg';
-                mime = 'image/svg+xml';
-            } else {
-                // Essayer de détecter avec file-type pour les autres formats
-                const fileTypeModule = await import('file-type');
-                const type = await fileTypeModule.fromBuffer(arrayBuffer);
-
-                if (type) {
-                    extension = type.ext;
-                    mime = type.mime;
-                }
+            if (type) {
+                extension = type.ext;
+                mime = type.mime;
             }
 
             const fileName = `${fileCode}.${extension}`;
             const destPath = path.join(targetDir, fileName);
             await fs.promises.writeFile(destPath, arrayBuffer);
-
             const stats = await fs.promises.stat(destPath);
 
             return {
@@ -96,20 +83,17 @@ export class LocalStorageService {
         } catch (err) {
             throw new InternalServerErrorException('Échec de l’écriture du fichier buffer');
         }
-
-
     }
 
     /**
      * Sauvegarde un fichier et retourne uniquement les champs compatibles avec Prisma FileManager
      */
-    async saveFileForPrisma(fileData: Buffer | string, folder = 'default',): Promise<{
+    async saveFileForPrisma( fileData: Buffer | string, folder = 'default',): Promise<{
         fileCode: string;
         fileName: string;
         fileMimeType: string;
         fileSize: number;
-        fileUrl: string;
-    }> {
+        fileUrl: string;}> {
         const upload = await this.saveFile(fileData, folder);
 
         return {

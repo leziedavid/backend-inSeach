@@ -69,6 +69,11 @@ enum UserStatus {
   BLOCKED
 }
 
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
 // ===========================
 // ICONES
 // ===========================
@@ -147,23 +152,29 @@ model User {
   selectedSubcategories UserSubcategory[]
   // Wallet (1:1)
   wallet                Wallet?
-}
 
+  // =======================
+  // ANNONCES (relation inverse)
+  // =======================
+  annonces Annonce[]
+}
 
 // ===========================
 // WALLET UTILISATEUR
 // ===========================
 model Wallet {
-  id           String        @id @default(uuid())
-  userId       String        @unique
-  user         User          @relation(fields: [userId], references: [id])
-  balance      Int           @default(0) // solde actuel en centimes
-  currency     String        @default("FCFA")
-  transactions Transaction[]
+  id            String        @id @default(uuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id])
+  balance       Int           @default(0) // solde actuel en centimes
+  currency      String        @default("FCFA")
+  transactions  Transaction[]
   paymentMethod PaymentMethod @default(MOBILE_MONEY)
-  rechargeType String        @default("WAVE")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @default(now()) @updatedAt
+  // ajout du status du compte
+  status        AccountStatus @default(ACTIVE)
+  rechargeType  String        @default("WAVE")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
 }
 
 // ===========================
@@ -191,61 +202,69 @@ model UserSubcategory {
 // SERVICES
 // ===========================
 model Service {
-  id              String              @id @default(uuid())
-  title           String
-  description     String?
-  providerId      String?
-  provider        User?               @relation("ProviderServices", fields: [providerId], references: [id])
-  serviceType     ServiceType
-  code            String              @unique
-  basePriceCents  Float? // <-- prix pour les achats en gros (optionnel)
-  completionPrice Float?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id                String              @id @default(uuid())
+  title             String
+  description       String?
+  providerId        String?
+  provider          User?               @relation("ProviderServices", fields: [providerId], references: [id])
+  serviceType       ServiceType
+  code              String              @unique
+  basePriceCents    Float? // <-- prix pour les achats en gros (optionnel)
+  completionPrice   Float?
+  expiration        Boolean             @default(false)
+  // ajout des frais de deplacement
+  transportFeeCents Float?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   // ----------------------
   //   LOCALISATION JSON
   // ----------------------
-  location        Json // { lat, lng, country, city, district, street }
+  location          Json // { lat, lng, country, city, district, street }
   // ICÔNES (relations)
   // ----------------------
-  iconId          String?
-  icone           Icone?              @relation(fields: [iconId], references: [id])
+  iconId            String?
+  icone             Icone?              @relation(fields: [iconId], references: [id])
   // ----------------------
   //   CATEGORIE & SOUS-CATEGORIE
   // ----------------------
-  categoryId      String?
-  category        ServiceCategory?    @relation(fields: [categoryId], references: [id])
-  subcategoryId   String?
-  subcategory     ServiceSubcategory? @relation(fields: [subcategoryId], references: [id])
+  categoryId        String?
+  category          ServiceCategory?    @relation(fields: [categoryId], references: [id])
+  subcategoryId     String?
+  subcategory       ServiceSubcategory? @relation(fields: [subcategoryId], references: [id])
   // Relations
-  appointments    Appointment[]
-  orderItems      OrderItem[]
+  appointments      Appointment[]
+  orderItems        OrderItem[]
 }
 
 // ===========================
 // RENDEZ-VOUS (APPOINTMENTS)
 // ===========================
 model Appointment {
-  id            String            @id @default(uuid())
-  serviceId     String
-  providerId    String
-  clientId      String?
-  transactionId String?           @unique
-  service       Service           @relation(fields: [serviceId], references: [id])
-  provider      User              @relation("ProviderAppointments", fields: [providerId], references: [id])
-  client        User?             @relation("ClientAppointments", fields: [clientId], references: [id])
-  transaction   Transaction?      @relation("AppointmentTransaction", fields: [transactionId], references: [id])
-  scheduledAt   DateTime?
-  time          String?
-  durationMins  Int?
-  priceCents    Float?
+  id               String            @id @default(uuid())
+  serviceId        String?
+  providerId       String
+  clientId         String?
+  transactionId    String?           @unique
+  service          Service?           @relation(fields: [serviceId], references: [id])
+  provider         User              @relation("ProviderAppointments", fields: [providerId], references: [id])
+  client           User?             @relation("ClientAppointments", fields: [clientId], references: [id])
+  transaction      Transaction?      @relation("AppointmentTransaction", fields: [transactionId], references: [id])
+  scheduledAt      DateTime?
+  time             String?
+  durationMins     Int?
+  priceCents       Float?
   interventionType String? // urgence | rdv
-  status        AppointmentStatus @default(REQUESTED)
+  status           AppointmentStatus @default(REQUESTED)
+  annonceId        String?
+  annonce          Annonce?          @relation(fields: [annonceId], references: [id])
+  entryDate        DateTime?
+  departureDate    DateTime?
+  nights           Int?
   // Nouvelle relation vers Rating
-  rating        Rating?
-  providerNotes String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  rating           Rating?
+  providerNotes    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model Category {
@@ -319,7 +338,6 @@ model Order {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   items         OrderItem[]
-
 }
 
 model OrderItem {
@@ -418,4 +436,113 @@ model FileManager {
   filePath     String? // chemin local sur le disque (optionnel)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @default(now()) @updatedAt
+}
+
+
+/// Table des types d'annonces (spécifique à l'immobilier)
+model AnnonceType {
+  id          String     @id @default(uuid())
+  label       String     @unique               // "Vente", "Location", etc.
+  description String?                        // Optionnel pour UI
+  annonces    Annonce[]                      // Toutes les annonces qui utilisent ce type
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  @@map("annonce_types")
+}
+
+// ===========================
+// ANNONCES
+// ===========================
+
+model Annonce {
+  id          String           @id @default(uuid())
+  title       String
+  pinned      Boolean          @default(false)
+  price       Float
+  capacity    Int              @default(1)
+  rooms       Int              @default(1)
+  beds        Int              @default(1)
+  description String?
+  rating      Float            @default(0)
+  certifiedAt DateTime?
+  location    String
+  status      Boolean          @default(true)
+  expiration  Boolean          @default(false)
+  // Relations
+  categoryId  String
+  category    AnnonceCategory  @relation(fields: [categoryId], references: [id])
+  providerId  String?
+  provider    User?            @relation(fields: [providerId], references: [id])
+  gpsLocation Json?
+  images      String[]
+  // Relations avancées
+  amenities   AnnonceAmenity[]
+  reviews     Review[]
+  appointments Appointment[]
+  typeId          String           // ← nouvelle relation vers AnnonceType
+  type            AnnonceType      @relation(fields: [typeId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@map("annonces")
+}
+
+// ===========================
+// CATÉGORIES D'ANNONCES
+// ===========================
+model AnnonceCategory {
+  id          String    @id @default(uuid())
+  value       String    @unique
+  label       String
+  description String?
+  certifiedAt DateTime?
+  annonces    Annonce[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("annonce_categories")
+}
+
+// ===========================
+// ÉQUIPEMENTS / AMENITIES
+// ===========================
+model Amenity {
+  id        String           @id @default(uuid())
+  label     String           @unique
+  icon      String?          // ✅ OPTIONNEL
+  annonces  AnnonceAmenity[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("amenities")
+}
+
+// ===========================
+// TABLE PIVOT ANNONCE ↔ AMENITY
+// ===========================
+model AnnonceAmenity {
+  id        String   @id @default(uuid())
+  annonceId String
+  amenityId String
+  annonce   Annonce  @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  amenity   Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([annonceId, amenityId])
+  @@map("annonce_amenities")
+}
+
+// ===========================
+// AVIS / REVIEWS
+// ===========================
+model Review {
+  id        String   @id @default(uuid())
+  author    String
+  rating    Int
+  comment   String?
+  annonceId String
+  annonce   Annonce  @relation(fields: [annonceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("annonce_reviews")
 }

@@ -9,20 +9,22 @@ import {
     UpdateServiceCategoryDto,
 } from 'src/common/dto/request/category.dto';
 
-import {
-    CreateServiceSubcategoryDto,
-    UpdateServiceSubcategoryDto,
-} from 'src/common/dto/request/subcategory.dto';
+import { CreateServiceSubcategoryDto, UpdateServiceSubcategoryDto, } from 'src/common/dto/request/subcategory.dto';
+import { FunctionService } from 'src/utils/pagination.service';
+import { FilterParamsDto } from 'src/common/dto/request/filter-params.dto';
 
 @Injectable()
 export class AllCategoriesService {
-    
+
     private genericCategory: GenericService<any>;
     private genericSubcategory: GenericService<any>;
+    private readonly functionService: FunctionService;
 
     constructor(private readonly prisma: PrismaService) {
         this.genericCategory = new GenericService(prisma, 'category');
         this.genericSubcategory = new GenericService(prisma, 'subCategory');
+        this.functionService = new FunctionService(prisma);
+
     }
 
     // ==============================================================
@@ -144,4 +146,58 @@ export class AllCategoriesService {
             data
         );
     }
+
+
+
+    // ==============================================================
+    // 📌 Pagination des catégories
+    // ==============================================================
+    async paginateCategories(params: FilterParamsDto): Promise<BaseResponse> {
+        try {
+            const pagination = await this.functionService.paginate({
+                model: 'ServiceCategory', // exact
+                page: params.page,
+                limit: params.limit,
+                selectAndInclude: {
+                    select: null,
+                    include: { subcategories: true }, // ✅ nom exact du champ dans le schéma
+                },
+                orderBy: { name: 'asc' },
+            });
+
+            return new BaseResponse(200, 'Catégories paginées', pagination);
+        } catch (error) {
+            console.error('[AllCategoriesService.paginateCategories] ❌', error);
+            throw new InternalServerErrorException('Erreur lors de la pagination des catégories');
+        }
+    }
+
+    // ==============================================================
+    // 📌 Pagination des sous-catégories
+    // ==============================================================
+    async paginateSubcategories(params: FilterParamsDto): Promise<BaseResponse> {
+        try {
+            const pagination = await this.functionService.paginate({
+                model: 'ServiceSubcategory', // exact
+                page: params.page,
+                limit: params.limit,
+                selectAndInclude: {
+                    select: null,
+                    include: { category: true }, // ✅ nom exact du champ dans le schéma
+                },
+                orderBy: { name: 'asc' },
+            });
+
+            const filteredData = params.categoryId
+                ? pagination.data.filter((item: any) => item.categoryId === params.categoryId)
+                : pagination.data;
+
+            return new BaseResponse(200, 'Sous-catégories paginées', { ...pagination, data: filteredData });
+        } catch (error) {
+            console.error('[AllCategoriesService.paginateSubcategories] ❌', error);
+            throw new InternalServerErrorException('Erreur lors de la pagination des sous-catégories');
+        }
+    }
+
+
 }

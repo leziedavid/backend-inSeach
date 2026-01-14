@@ -8,7 +8,7 @@ import { CreateServiceSubcategoryDto, UpdateServiceSubcategoryDto } from 'src/co
 import { ImportFileDto } from 'src/common/dto/request/import-file.dto';
 
 
-@ApiTags('Category Api')
+@ApiTags('Category de services API management')
 @ApiBearerAuth('access-token')
 @Controller('categories')
 export class CategoryController {

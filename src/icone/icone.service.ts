@@ -27,21 +27,27 @@ export class IconeService {
     }
 
     /** --------------------- Upload fichier --------------------- */
-    private async uploadFile(userId: string, fileBuffer: Buffer | string, fileType: string, folder: string) {
+    private async uploadFile(userId: string, fileBuffer: Buffer | string, fileType: string, folder: string, replaceExisting = false,) {
 
-        const existingFile = await this.prisma.fileManager.findFirst({
-            where: { targetId: userId, fileType },
-            orderBy: { createdAt: 'desc' },
-        });
+        if (replaceExisting) {
+            
+            const existingFile = await this.prisma.fileManager.findFirst({
+                where: { targetId: userId, fileType },
+                orderBy: { createdAt: 'desc' },
+            });
 
-        if (existingFile?.fileCode) {
-            try {
-                await this.localStorage.deleteFile(existingFile.fileCode);
-            } catch (err) {
-                console.warn(`Erreur suppression du fichier ${existingFile.fileCode}: ${err.message}`);
+            if (existingFile?.fileCode) {
+                try {
+                    await this.localStorage.deleteFile(existingFile.fileCode);
+                } catch (err) {
+                    console.warn(`Erreur suppression du fichier ${existingFile.fileCode}: ${err.message}`);
+                }
+                await this.prisma.fileManager.deleteMany({
+                    where: { targetId: userId, fileType },
+                });
             }
-            await this.prisma.fileManager.deleteMany({ where: { targetId: userId, fileType } });
         }
+
         const uploadResult = await this.localStorage.saveFile(fileBuffer, folder);
         await this.prisma.fileManager.create({
             data: { ...uploadResult, fileType, targetId: userId },

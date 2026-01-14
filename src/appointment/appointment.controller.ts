@@ -15,7 +15,7 @@ export class AppointmentController {
     constructor(private readonly appointmentsService: AppointmentService) { }
 
     /** --------------------- 📌 Créer un rendez-vous --------------------- */
-    /** --------------------- 📌 Créer un rendez-vous --------------------- */
+
     @UseGuards(JwtAuthGuard)
     @Post()
     @ApiOperation({ summary: 'Créer un rendez-vous' })
@@ -23,8 +23,8 @@ export class AppointmentController {
     async create(@Body() dto: CreateAppointmentDto, @Req() req: Request) {
         const user = req.user as any;
         // Log utile pour debug (à garder si besoin)
-        console.log("📥 Reçu BODY JSON =", req.body);
-        console.log("📘 DTO Après Validation =", dto);
+        // console.log("📥 Reçu BODY JSON =", req.body);
+        // console.log("📘 DTO Après Validation =", dto);
         return this.appointmentsService.create(dto, user.id);
     }
 

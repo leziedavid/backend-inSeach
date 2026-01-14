@@ -32,7 +32,13 @@ export class GenericService<T> {
 
     async update(where: any, data: any): Promise<T> {
         try {
-            return await (this.prisma[this.modelName] as any).update({ where, data });
+            // Si 'where' est une string (UUID), on assume que c'est l'ID
+            const whereClause = typeof where === 'string' ? { id: where } : where;
+
+            return await (this.prisma[this.modelName] as any).update({
+                where: whereClause,
+                data
+            });
         } catch (error) {
             console.error('Erreur update :', error);
             throw new InternalServerErrorException('Erreur lors de la mise à jour');
@@ -41,14 +47,19 @@ export class GenericService<T> {
 
     async delete(where: any): Promise<T> {
         try {
-            return await (this.prisma[this.modelName] as any).delete({ where });
+            // Si 'where' est une string (UUID), on assume que c'est l'ID
+            const whereClause = typeof where === 'string' ? { id: where } : where;
+
+            return await (this.prisma[this.modelName] as any).delete({
+                where: whereClause
+            });
         } catch (error) {
             console.error('Erreur delete :', error);
             throw new InternalServerErrorException('Erreur lors de la suppression');
         }
     }
 
-        // ---------- Ajout de deleteMany ----------
+    // ---------- Ajout de deleteMany ----------
     async deleteMany(where: any): Promise<{ count: number }> {
         try {
             return await (this.prisma[this.modelName] as any).deleteMany({ where });
@@ -57,7 +68,7 @@ export class GenericService<T> {
             throw new InternalServerErrorException('Erreur lors de la suppression multiple');
         }
     }
-        /** ---------- Nouvelle méthode avec OR / AND ---------- */
+    /** ---------- Nouvelle méthode avec OR / AND ---------- */
     async findFirst(where: any, include?: any): Promise<T> {
         const entity = await (this.prisma[this.modelName] as any).findFirst({ where, include });
         if (!entity) throw new NotFoundException(`${String(this.modelName)} introuvable`);

@@ -1,12 +1,13 @@
-import {Controller,Get,Post,Patch,Delete,Body,Param,UploadedFile,UseInterceptors,} from '@nestjs/common';
-import {ApiTags,ApiOperation,ApiResponse,ApiConsumes,ApiBearerAuth,} from '@nestjs/swagger';
+import {Controller,Get,Post,Patch,Delete,Body,Param,UploadedFile,UseInterceptors, Query, Req,} from '@nestjs/common';
+import {ApiTags,ApiOperation,ApiResponse,ApiConsumes,ApiBearerAuth, ApiQuery,} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { AllCategoriesService } from './all-categories.service';
 import { CreateServiceCategoryDto, UpdateServiceCategoryDto } from 'src/common/dto/request/category.dto';
 import { CreateServiceSubcategoryDto, UpdateServiceSubcategoryDto } from 'src/common/dto/request/subcategory.dto';
+import { FilterParamsDto } from 'src/common/dto/request/filter-params.dto';
 
-@ApiTags('All Categories Api')
+@ApiTags('Categories de produits API management')
 @ApiBearerAuth('access-token')
 @Controller('all-categories')
 
@@ -111,4 +112,25 @@ export class AllCategoriesController {
     async getAllSubcategories() {
         return this.allCategoriesService.getAllSubcategories();
     }
+
+    // paginateCategories
+    @Get('with/subcategories/paginations')
+    @ApiOperation({ summary: 'Retourner toutes les catégories parginées avec leurs sous-catégories' })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @ApiResponse({ status: 200, description: 'Liste des services récupérée.' })
+    async paginateCategories(@Query() params: FilterParamsDto, @Req() req: Request,) {
+        return this.allCategoriesService.paginateCategories(params);
+    }
+// paginateSubcategories
+
+    @Get('subcategories/paginations/categoryId')
+    @ApiOperation({ summary: 'Retourner les sous-catégories parginées d’une catégorie donnée' })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @ApiResponse({ status: 200, description: 'Liste des services récupérée.' })
+    async paginateSubcategories(@Query() params: FilterParamsDto, @Req() req: Request,) {
+        return this.allCategoriesService.paginateSubcategories(params);
+    }
+
 }

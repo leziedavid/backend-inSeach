@@ -15,6 +15,11 @@ import { AllCategoriesModule } from './all-categories/all-categories.module';
 import { ProductModule } from './product/product.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { HistoryModule } from './history/history.module';
+import { AnnoncesModule } from './annonces/annonces.module';
+import { AnnonceCategoryModule } from './annonce-category/annonce-category.module';
+import { AnnonceAmenityModule } from './annonce-amenity/annonce-amenity.module';
+import { AnnonceTypeModule } from './annonce-type/annonce-type.module';
+import { AppointmentAnnonceModule } from './appointment-annonce/appointment-annonce.module';
 
 
 
@@ -34,6 +39,11 @@ import { HistoryModule } from './history/history.module';
     ProductModule,
     AppointmentModule,
     HistoryModule,
+    AnnoncesModule,
+    AnnonceCategoryModule,
+    AnnonceAmenityModule,
+    AnnonceTypeModule,
+    AppointmentAnnonceModule,
   ],
 })
 export class AppModule {}

@@ -8,8 +8,8 @@ import { ParamsDto } from 'src/common/dto/request/params.dto';
 
 @Injectable()
 export class AppointmentService {
-    
-    constructor(private prisma: PrismaService,  private functionService: FunctionService,) { }
+
+    constructor(private prisma: PrismaService, private functionService: FunctionService,) { }
 
     /* ----------------------
      * CREATE APPOINTMENT
@@ -204,7 +204,7 @@ export class AppointmentService {
 
     async findOne(id: string) {
 
-        const appointment = await this.prisma.appointment.findUnique({ where: { id }, include: { service: true, provider: true, client: true },});
+        const appointment = await this.prisma.appointment.findUnique({ where: { id }, include: { service: true, provider: true, client: true }, });
         if (!appointment) throw new NotFoundException('Rendez-vous introuvable');
         return new BaseResponse(200, 'Rendez-vous récupéré', appointment);
 
@@ -253,12 +253,13 @@ export class AppointmentService {
             // 2️⃣ Construire les conditions selon le rôle
             let conditions: any = {};
             if (userRole === 'CLIENT') {
-                conditions = { clientId: userId };
+                conditions = { clientId: userId,  serviceId: { not: null }, };
+
             } else if (userRole === 'PROVIDER') {
                 // Important : on filtre par providerId dans la relation service, mais on ne fait pas d'include direct sur service pour la condition
                 const services = await this.prisma.service.findMany({ where: { providerId: userId }, select: { id: true }, });
                 const serviceIds = services.map(s => s.id);
-                where = { serviceId: { in: serviceIds } };
+                conditions = {  serviceId: { in: serviceIds, not: null, },  };
             } else {
                 throw new ForbiddenException('Rôle non autorisé pour cette opération');
             }
@@ -292,28 +293,63 @@ export class AppointmentService {
     }
 
     /* ----------------------
- * GET APPOINTMENTS FOR CALENDAR
- * ----------------------*/
+     * GET APPOINTMENTS FOR CALENDAR
+     * ----------------------*/
     async getCalendarData(userId: string, year?: number, month?: number) {
         try {
-            // Déterminer la période (mois en cours par défaut)
+            // 1️⃣ Récupérer l'utilisateur et son rôle
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+            });
+            if (!user) {
+                throw new NotFoundException('Utilisateur introuvable');
+            }
+
+            const userRole = user.roles; // CLIENT | PROVIDER
+
+            // 2️⃣ Déterminer la période
             const currentDate = new Date();
             const targetYear = year ?? currentDate.getFullYear();
             const targetMonth = month ?? currentDate.getMonth(); // 0-indexed
 
-            // Calculer les dates de début et fin du mois
             const startDate = new Date(targetYear, targetMonth, 1);
             const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
 
+            // 3️⃣ Construire le filtre dynamique selon le rôle
+            let roleConditions: any = {};
+
+            if (userRole === 'CLIENT') {
+                roleConditions = {
+                    clientId: userId,
+                    serviceId: { not: null },
+                };
+            }
+
+            else if (userRole === 'PROVIDER') {
+                const services = await this.prisma.service.findMany({
+                    where: { providerId: userId },
+                    select: { id: true },
+                });
+
+                const serviceIds = services.map(s => s.id);
+
+                roleConditions = {
+                    serviceId: {
+                        in: serviceIds,
+                        not: null,
+                    },
+                };
+            }
+
+            else {
+                throw new ForbiddenException('Rôle non autorisé');
+            }
+
+            // 4️⃣ Requête finale
             const appointments = await this.prisma.appointment.findMany({
                 where: {
                     AND: [
-                        {
-                            OR: [
-                                { clientId: userId },
-                                { providerId: userId },
-                            ],
-                        },
+                        roleConditions,
                         {
                             scheduledAt: {
                                 gte: startDate,
@@ -332,19 +368,21 @@ export class AppointmentService {
                 },
             });
 
-            // Transformer les données pour le frontend
+            // 5️⃣ Transformation pour le frontend
             const transformedAppointments = appointments.map(apt => ({
                 id: apt.id,
                 serviceId: apt.serviceId,
                 providerId: apt.providerId,
                 clientId: apt.clientId,
-                client: apt.client ? {
-                    id: apt.client.id,
-                    name: apt.client.name,
-                    email: apt.client.email,
-                    phone: apt.client.phone,
-                } : null,
-                scheduledAt: apt.scheduledAt ? apt.scheduledAt.toISOString() : null,
+                client: apt.client
+                    ? {
+                        id: apt.client.id,
+                        name: apt.client.name,
+                        email: apt.client.email,
+                        phone: apt.client.phone,
+                    }
+                    : null,
+                scheduledAt: apt.scheduledAt?.toISOString() ?? null,
                 time: apt.time,
                 durationMins: apt.durationMins,
                 priceCents: apt.priceCents,
@@ -355,21 +393,20 @@ export class AppointmentService {
                 updatedAt: apt.updatedAt.toISOString(),
             }));
 
-            // Grouper les rendez-vous par jour pour faciliter l'affichage dans le calendrier
-            const appointmentsByDay = {};
+            // 6️⃣ Groupement par jour
+            const appointmentsByDay: Record<string, any[]> = {};
+
             transformedAppointments.forEach(apt => {
-                if (apt.scheduledAt) {
-                    const date = new Date(apt.scheduledAt);
-                    const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                if (!apt.scheduledAt) return;
 
-                    if (!appointmentsByDay[dateKey]) {
-                        appointmentsByDay[dateKey] = [];
-                    }
+                const date = new Date(apt.scheduledAt);
+                const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
-                    appointmentsByDay[dateKey].push(apt);
-                }
+                appointmentsByDay[key] = appointmentsByDay[key] || [];
+                appointmentsByDay[key].push(apt);
             });
 
+            // 7️⃣ Réponse
             return new BaseResponse(200, 'Données calendrier récupérées', {
                 appointments: transformedAppointments,
                 appointmentsByDay,
@@ -384,15 +421,19 @@ export class AppointmentService {
                     total: transformedAppointments.length,
                     confirmed: transformedAppointments.filter(a => a.status === AppointmentStatus.CONFIRMED).length,
                     pending: transformedAppointments.filter(a => a.status === AppointmentStatus.REQUESTED).length,
-                    cancelled: transformedAppointments.filter(a => a.status === AppointmentStatus.CANCELLED || a.status === AppointmentStatus.REJECTED).length,
+                    cancelled: transformedAppointments.filter(
+                        a => a.status === AppointmentStatus.CANCELLED || a.status === AppointmentStatus.REJECTED
+                    ).length,
                     completed: transformedAppointments.filter(a => a.status === AppointmentStatus.COMPLETED).length,
-                }
+                },
             });
+
         } catch (error) {
             console.error('[Appointment.getCalendarData] ❌', error);
             throw new InternalServerErrorException('Erreur récupération données calendrier');
         }
     }
+
 
     /* ----------------------
      * HELPER: GET MONTH NAME

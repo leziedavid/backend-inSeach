@@ -27,7 +27,7 @@ export class IconeController {
         dto.images = files.images ?? [];
         return this.iconeService.create(dto);
     }
-
+    
     /* -------------------
      * UPDATE ICONE
      * ------------------*/
