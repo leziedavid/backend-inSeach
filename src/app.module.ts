@@ -20,6 +20,8 @@ import { AnnonceCategoryModule } from './annonce-category/annonce-category.modul
 import { AnnonceAmenityModule } from './annonce-amenity/annonce-amenity.module';
 import { AnnonceTypeModule } from './annonce-type/annonce-type.module';
 import { AppointmentAnnonceModule } from './appointment-annonce/appointment-annonce.module';
+import { PushModule } from './push/push.module';
+import { NotificationModule } from './notification/notification.module';
 
 
 
@@ -44,6 +46,8 @@ import { AppointmentAnnonceModule } from './appointment-annonce/appointment-anno
     AnnonceAmenityModule,
     AnnonceTypeModule,
     AppointmentAnnonceModule,
+    PushModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}
